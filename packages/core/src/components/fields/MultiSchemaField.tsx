@@ -46,10 +46,11 @@ class AnyOfField<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends For
     const {
       formData,
       options,
+      baseURI,
       registry: { schemaUtils },
     } = this.props;
     // cache the retrieved options in state in case they have $refs to save doing it later
-    const retrievedOptions = options.map((opt: S) => schemaUtils.retrieveSchema(opt, formData));
+    const retrievedOptions = options.map((opt: S) => schemaUtils.retrieveSchema(opt, formData, baseURI));
 
     this.state = {
       retrievedOptions,
@@ -69,10 +70,11 @@ class AnyOfField<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends For
     let newState = this.state;
     if (!deepEquals(prevProps.options, options)) {
       const {
+        baseURI,
         registry: { schemaUtils },
       } = this.props;
       // re-cache the retrieved options in state in case they have $refs to save doing it later
-      const retrievedOptions = options.map((opt: S) => schemaUtils.retrieveSchema(opt, formData));
+      const retrievedOptions = options.map((opt: S) => schemaUtils.retrieveSchema(opt, formData, baseURI));
       newState = { selectedOption, retrievedOptions };
     }
     if (!deepEquals(formData, prevProps.formData) && idSchema.$id === prevProps.idSchema.$id) {

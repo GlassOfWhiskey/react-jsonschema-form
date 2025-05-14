@@ -22,6 +22,7 @@ import {
 } from '@rjsf/utils';
 import isObject from 'lodash/isObject';
 import omit from 'lodash/omit';
+import get from 'lodash/get';
 
 /** The map of component type to FieldName */
 const COMPONENT_TYPES: { [key: string]: string } = {
@@ -118,6 +119,7 @@ function SchemaFieldRender<T = any, S extends StrictRJSFSchema = RJSFSchema, F e
     onDropPropertyClick,
     required,
     registry,
+    baseURI,
     wasPropertyKeyModified = false,
   } = props;
   const { formContext, schemaUtils, globalUiOptions } = registry;
@@ -130,7 +132,8 @@ function SchemaFieldRender<T = any, S extends StrictRJSFSchema = RJSFSchema, F e
   );
   const FieldHelpTemplate = getTemplate<'FieldHelpTemplate', T, S, F>('FieldHelpTemplate', registry, uiOptions);
   const FieldErrorTemplate = getTemplate<'FieldErrorTemplate', T, S, F>('FieldErrorTemplate', registry, uiOptions);
-  const schema = schemaUtils.retrieveSchema(_schema, formData);
+  const schema = schemaUtils.retrieveSchema(_schema, formData, baseURI);
+  const retrievedBaseURI = get(schema, [ID_KEY], baseURI);
   const fieldId = _idSchema[ID_KEY];
   const idSchema = mergeObjects(
     schemaUtils.toIdSchema(schema, fieldId, formData, idPrefix, idSeparator),
@@ -182,6 +185,7 @@ function SchemaFieldRender<T = any, S extends StrictRJSFSchema = RJSFSchema, F e
       errorSchema={fieldErrorSchema as ErrorSchema}
       formContext={formContext}
       rawErrors={__errors}
+      baseURI={retrievedBaseURI}
     />
   );
 
@@ -299,12 +303,13 @@ function SchemaFieldRender<T = any, S extends StrictRJSFSchema = RJSFSchema, F e
             onChange={props.onChange}
             onFocus={props.onFocus}
             options={schema.anyOf.map((_schema) =>
-              schemaUtils.retrieveSchema(isObject(_schema) ? (_schema as S) : ({} as S), formData),
+              schemaUtils.retrieveSchema(isObject(_schema) ? (_schema as S) : ({} as S), formData, retrievedBaseURI),
             )}
             registry={registry}
             required={required}
             schema={schema}
             uiSchema={uiSchema}
+            baseURI={retrievedBaseURI}
           />
         )}
         {schema.oneOf && !isReplacingAnyOrOneOf && !schemaUtils.isSelect(schema) && (
@@ -323,12 +328,13 @@ function SchemaFieldRender<T = any, S extends StrictRJSFSchema = RJSFSchema, F e
             onChange={props.onChange}
             onFocus={props.onFocus}
             options={schema.oneOf.map((_schema) =>
-              schemaUtils.retrieveSchema(isObject(_schema) ? (_schema as S) : ({} as S), formData),
+              schemaUtils.retrieveSchema(isObject(_schema) ? (_schema as S) : ({} as S), formData, retrievedBaseURI),
             )}
             registry={registry}
             required={required}
             schema={schema}
             uiSchema={uiSchema}
+            baseURI={retrievedBaseURI}
           />
         )}
       </>

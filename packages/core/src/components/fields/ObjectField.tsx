@@ -16,6 +16,7 @@ import {
   REF_KEY,
   ANY_OF_KEY,
   ONE_OF_KEY,
+  ID_KEY,
 } from '@rjsf/utils';
 import Markdown from 'markdown-to-jsx';
 import get from 'lodash/get';
@@ -198,7 +199,7 @@ class ObjectField<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends Fo
     if (!(schema.additionalProperties || schema.patternProperties)) {
       return;
     }
-    const { formData, onChange, registry } = this.props;
+    const { formData, onChange, registry, baseURI } = this.props;
     const newFormData = { ...formData } as T;
     const newKey = this.getAvailableKey('newKey', newFormData);
     if (schema.patternProperties) {
@@ -215,7 +216,7 @@ class ObjectField<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends Fo
         let apSchema = schema.additionalProperties;
         if (REF_KEY in apSchema) {
           const { schemaUtils } = registry;
-          apSchema = schemaUtils.retrieveSchema({ $ref: apSchema[REF_KEY] } as S, formData);
+          apSchema = schemaUtils.retrieveSchema({ $ref: apSchema[REF_KEY] } as S, formData, baseURI);
           type = apSchema.type;
           constValue = apSchema.const;
           defaultValue = apSchema.default;
@@ -253,11 +254,12 @@ class ObjectField<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends Fo
       onFocus,
       registry,
       title,
+      baseURI,
     } = this.props;
 
     const { fields, formContext, schemaUtils, translateString, globalUiOptions } = registry;
     const { SchemaField } = fields;
-    const schema: S = schemaUtils.retrieveSchema(rawSchema, formData);
+    const schema: S = schemaUtils.retrieveSchema(rawSchema, formData, baseURI);
     const uiOptions = getUiOptions<T, S, F>(uiSchema, globalUiOptions);
     const { properties: schemaProperties = {} } = schema;
 
@@ -288,6 +290,7 @@ class ObjectField<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends Fo
       description: uiOptions.label === false ? undefined : description,
       properties: orderedProperties.map((name) => {
         const addedByAdditionalProperties = has(schema, [PROPERTIES_KEY, name, ADDITIONAL_PROPERTY_FLAG]);
+        const fieldSchema = get(schema, [PROPERTIES_KEY, name], {}) as S;
         const fieldUiSchema = addedByAdditionalProperties ? uiSchema.additionalProperties : uiSchema[name];
         const hidden = getUiOptions<T, S, F>(fieldUiSchema).widget === 'hidden';
         const fieldIdSchema: IdSchema<T> = get(idSchema, [name], {});
@@ -298,7 +301,7 @@ class ObjectField<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends Fo
               key={name}
               name={name}
               required={this.isRequired(name)}
-              schema={get(schema, [PROPERTIES_KEY, name], {}) as S}
+              schema={fieldSchema}
               uiSchema={fieldUiSchema}
               errorSchema={get(errorSchema, name)}
               idSchema={fieldIdSchema}
@@ -316,6 +319,7 @@ class ObjectField<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends Fo
               readonly={readonly}
               hideError={hideError}
               onDropPropertyClick={this.onDropPropertyClick}
+              baseURI={get(fieldSchema, [ID_KEY], get(schema, [ID_KEY], baseURI))}
             />
           ),
           name,

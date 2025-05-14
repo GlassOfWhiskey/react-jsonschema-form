@@ -520,6 +520,7 @@ export default class LayoutGridField<
     formData: FieldProps<T, S, F>['formData'],
     initialIdSchema: IdSchema<T>,
     idSeparator?: string,
+    baseURI?: string,
   ): {
     schema?: S;
     isRequired: boolean;
@@ -531,7 +532,8 @@ export default class LayoutGridField<
     let idSchema = initialIdSchema;
     const parts: string[] = dottedPath.split('.');
     const leafPath: string | undefined = parts.pop(); // pop off the last element in the list as the leaf
-    let schema: S | undefined = schemaUtils.retrieveSchema(rawSchema, formData); // always returns an object
+    let schema: S | undefined = schemaUtils.retrieveSchema(rawSchema, formData, baseURI); // always returns an object
+    let retrievedBaseURI = get(schema, [ID_KEY], baseURI);
     let innerData = formData;
     let isReadonly: boolean | undefined = schema.readOnly;
 
@@ -560,7 +562,8 @@ export default class LayoutGridField<
       // Now drill into the innerData for the part, returning an empty object by default if it doesn't exist
       innerData = get(innerData, part, {}) as T;
       // Resolve any `$ref`s for the current rawSchema
-      schema = schemaUtils.retrieveSchema(rawSchema, innerData);
+      schema = schemaUtils.retrieveSchema(rawSchema, innerData, retrievedBaseURI);
+      retrievedBaseURI = get(schema, [ID_KEY], retrievedBaseURI);
       isReadonly = getNonNullishValue(schema.readOnly, isReadonly);
     });
 
@@ -584,7 +587,8 @@ export default class LayoutGridField<
       // Now grab the schema from the leafPath of the current schema properties
       schema = get(schema, [PROPERTIES_KEY, leafPath]) as S | undefined;
       // Resolve any `$ref`s for the current schema
-      schema = schema ? schemaUtils.retrieveSchema(schema) : schema;
+      schema = schema ? schemaUtils.retrieveSchema(schema, undefined, baseURI) : schema;
+      retrievedBaseURI = get(schema, [ID_KEY], retrievedBaseURI);
       idSchema = get(idSchema, leafPath, {}) as IdSchema<T>;
       isReadonly = getNonNullishValue(schema?.readOnly, isReadonly);
       if (schema && (has(schema, ONE_OF_KEY) || has(schema, ANY_OF_KEY))) {
@@ -802,9 +806,9 @@ export default class LayoutGridField<
    * @returns - The nested `LayoutGridField`s
    */
   renderChildren(childrenLayoutGridSchema: LayoutGridSchemaType[]) {
-    const { registry, schema: rawSchema, formData } = this.props;
+    const { registry, schema: rawSchema, formData, baseURI } = this.props;
     const { schemaUtils } = registry;
-    const schema = schemaUtils.retrieveSchema(rawSchema, formData);
+    const schema = schemaUtils.retrieveSchema(rawSchema, formData, baseURI);
 
     return childrenLayoutGridSchema.map((layoutGridSchema) => (
       <LayoutGridField<T, S, F>

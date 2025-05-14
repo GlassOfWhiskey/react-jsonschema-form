@@ -463,6 +463,8 @@ export interface FieldProps<T = any, S extends StrictRJSFSchema = RJSFSchema, F 
   idSeparator?: string;
   /** An array of strings listing all generated error messages from encountered errors for this field */
   rawErrors?: string[];
+  /** The base URI to be used for resolving relative references */
+  baseURI?: string;
 }
 
 /** The definition of a React-based Field component */
@@ -1231,9 +1233,10 @@ export interface SchemaUtilsType<T = any, S extends StrictRJSFSchema = RJSFSchem
    *
    * @param schema - The schema for which retrieving a schema is desired
    * @param [formData] - The current formData, if any, to assist retrieving a schema
+   * @param [baseURI] - The base URI to be used for resolving relative references
    * @returns - The schema having its conditions, additional properties, references and dependencies resolved
    */
-  retrieveSchema(schema: S, formData?: T): S;
+  retrieveSchema(schema: S, formData?: T, baseURI?: string): S;
   /** Sanitize the `data` associated with the `oldSchema` so it is considered appropriate for the `newSchema`. If the
    * new schema does not contain any properties, then `undefined` is returned to clear all the form data. Due to the
    * nature of schemas, this sanitization happens recursively for nested objects of data. Also, any properties in the

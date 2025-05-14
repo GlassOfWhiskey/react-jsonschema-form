@@ -17,6 +17,7 @@ import {
   TranslatableString,
   UiSchema,
   ITEMS_KEY,
+  ID_KEY,
 } from '@rjsf/utils';
 import cloneDeep from 'lodash/cloneDeep';
 import get from 'lodash/get';
@@ -183,7 +184,7 @@ class ArrayField<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends For
       itemSchema = schema.additionalItems as S;
     }
     // Cast this as a T to work around schema utils being for T[] caused by the FieldProps<T[], S, F> call on the class
-    return schemaUtils.getDefaultFormState(itemSchema) as unknown as T;
+    return schemaUtils.getDefaultFormState(itemSchema, undefined) as unknown as T;
   };
 
   /** Callback handler for when the user clicks on the add or add at index buttons. Creates a new row of keyed form data
@@ -481,13 +482,14 @@ class ArrayField<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends For
       idPrefix,
       idSeparator = '_',
       rawErrors,
+      baseURI,
     } = this.props;
     const { keyedFormData } = this.state;
     const fieldTitle = schema.title || title || name;
     const { schemaUtils, formContext } = registry;
     const uiOptions = getUiOptions<T[], S, F>(uiSchema);
     const _schemaItems: S = isObject(schema.items) ? (schema.items as S) : ({} as S);
-    const itemsSchema: S = schemaUtils.retrieveSchema(_schemaItems);
+    const itemsSchema: S = schemaUtils.retrieveSchema(_schemaItems, undefined, baseURI);
     const formData = keyedToPlainFormData(this.state.keyedFormData);
     const canAdd = this.canAddItem(formData);
     const arrayProps: ArrayFieldTemplateProps<T[], S, F> = {
@@ -496,7 +498,7 @@ class ArrayField<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends For
         const { key, item } = keyedItem;
         // While we are actually dealing with a single item of type T, the types require a T[], so cast
         const itemCast = item as unknown as T[];
-        const itemSchema = schemaUtils.retrieveSchema(_schemaItems, itemCast);
+        const itemSchema = schemaUtils.retrieveSchema(_schemaItems, itemCast, baseURI);
         const itemErrorSchema = errorSchema ? (errorSchema[index] as ErrorSchema<T[]>) : undefined;
         const itemIdPrefix = idSchema.$id + idSeparator + index;
         const itemIdSchema = schemaUtils.toIdSchema(itemSchema, itemIdPrefix, itemCast, idPrefix, idSeparator);
@@ -518,6 +520,7 @@ class ArrayField<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends For
           onFocus,
           rawErrors,
           totalItems: keyedFormData.length,
+          baseURI: get(itemSchema, [ID_KEY], get(itemsSchema, [ID_KEY], baseURI)),
         });
       }),
       className: `rjsf-field rjsf-field-array rjsf-field-array-of-${itemsSchema.type}`,
@@ -609,9 +612,10 @@ class ArrayField<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends For
       registry,
       rawErrors,
       name,
+      baseURI,
     } = this.props;
     const { widgets, schemaUtils, formContext, globalUiOptions } = registry;
-    const itemsSchema = schemaUtils.retrieveSchema(schema.items as S, items);
+    const itemsSchema = schemaUtils.retrieveSchema(schema.items as S, items, baseURI);
     const enumOptions = optionsList<T[], S, F>(itemsSchema, uiSchema);
     const { widget = 'select', title: uiTitle, ...options } = getUiOptions<T[], S, F>(uiSchema, globalUiOptions);
     const Widget = getWidget<T[], S, F>(schema, widget, widgets);
@@ -712,6 +716,7 @@ class ArrayField<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends For
       onBlur,
       onFocus,
       rawErrors,
+      baseURI,
     } = this.props;
     const { keyedFormData } = this.state;
     let { formData: items = [] } = this.props;
@@ -720,10 +725,10 @@ class ArrayField<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends For
     const { schemaUtils, formContext } = registry;
     const _schemaItems: S[] = isObject(schema.items) ? (schema.items as S[]) : ([] as S[]);
     const itemSchemas = _schemaItems.map((item: S, index: number) =>
-      schemaUtils.retrieveSchema(item, formData[index] as unknown as T[]),
+      schemaUtils.retrieveSchema(item, formData[index] as unknown as T[], baseURI),
     );
     const additionalSchema = isObject(schema.additionalItems)
-      ? schemaUtils.retrieveSchema(schema.additionalItems as S, formData)
+      ? schemaUtils.retrieveSchema(schema.additionalItems as S, formData, baseURI)
       : null;
 
     if (!items || items.length < itemSchemas.length) {
@@ -747,7 +752,7 @@ class ArrayField<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends For
         const additional = index >= itemSchemas.length;
         const itemSchema =
           (additional && isObject(schema.additionalItems)
-            ? schemaUtils.retrieveSchema(schema.additionalItems as S, itemCast)
+            ? schemaUtils.retrieveSchema(schema.additionalItems as S, itemCast, baseURI)
             : itemSchemas[index]) || {};
         const itemIdPrefix = idSchema.$id + idSeparator + index;
         const itemIdSchema = schemaUtils.toIdSchema(itemSchema, itemIdPrefix, itemCast, idPrefix, idSeparator);
@@ -777,6 +782,7 @@ class ArrayField<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends For
           onFocus,
           rawErrors,
           totalItems: keyedFormData.length,
+          baseURI: get(itemSchema, [ID_KEY], get(itemSchemas, [ID_KEY], baseURI)),
         });
       }),
       onAddClick: this.onAddClick,
@@ -819,6 +825,7 @@ class ArrayField<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends For
     onFocus: FieldProps<T[], S, F>['onFocus'];
     rawErrors?: string[];
     totalItems: number;
+    baseURI?: string;
   }) {
     const {
       key,
@@ -839,6 +846,7 @@ class ArrayField<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends For
       rawErrors,
       totalItems,
       title,
+      baseURI,
     } = props;
     const { disabled, hideError, idPrefix, idSeparator, readonly, uiSchema, registry, formContext } = this.props;
     const {
@@ -880,6 +888,7 @@ class ArrayField<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends For
           hideError={hideError}
           autofocus={autofocus}
           rawErrors={rawErrors}
+          baseURI={baseURI}
         />
       ),
       buttonsProps: {

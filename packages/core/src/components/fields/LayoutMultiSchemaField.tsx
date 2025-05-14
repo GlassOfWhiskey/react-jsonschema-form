@@ -56,6 +56,7 @@ export function getSelectedOption<S extends StrictRJSFSchema = RJSFSchema>(
  * @param schemaUtils - The SchemaUtilsType object used to call retrieveSchema,
  * @param [uiSchema] - The optional uiSchema for the schema
  * @param [formData] - The optional formData associated with the schema
+ * @param [baseURI] - The base URI to be used for resolving relative references
  * @returns - The list of enumOptions for the `schema` and `options`
  * @throws - Error when no enum options were computed
  */
@@ -65,8 +66,9 @@ export function computeEnumOptions<T = any, S extends StrictRJSFSchema = RJSFSch
   schemaUtils: SchemaUtilsType<T, S, F>,
   uiSchema?: UiSchema<T, S, F>,
   formData?: T,
+  baseURI?: string,
 ): EnumOptionsType<S>[] {
-  const realOptions = options.map((opt: S) => schemaUtils.retrieveSchema(opt, formData));
+  const realOptions = options.map((opt: S) => schemaUtils.retrieveSchema(opt, formData, baseURI));
   let tempSchema = schema;
   if (has(schema, ONE_OF_KEY)) {
     tempSchema = { ...schema, [ONE_OF_KEY]: realOptions };
@@ -109,10 +111,13 @@ export default function LayoutMultiSchemaField<
     readonly,
     required,
     errorSchema,
+    baseURI,
     hideError = false,
   } = props;
   const { widgets, schemaUtils, globalUiOptions } = registry;
-  const [enumOptions, setEnumOptions] = useState(computeEnumOptions(schema, options, schemaUtils, uiSchema, formData)!);
+  const [enumOptions, setEnumOptions] = useState(
+    computeEnumOptions(schema, options, schemaUtils, uiSchema, formData, baseURI)!,
+  );
   const id = get(idSchema, ID_KEY);
   const discriminator = getDiscriminatorFieldFromSchema(schema);
   const FieldErrorTemplate = getTemplate<'FieldErrorTemplate', T, S, F>('FieldErrorTemplate', registry, options);
@@ -123,7 +128,7 @@ export default function LayoutMultiSchemaField<
   const formDataHash = formData ? hashObject(formData) : '';
 
   useEffect(() => {
-    setEnumOptions(computeEnumOptions(schema, options, schemaUtils, uiSchema, formData));
+    setEnumOptions(computeEnumOptions(schema, options, schemaUtils, uiSchema, formData, baseURI));
     // We are using hashes in place of the dependencies
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schemaHash, optionsHash, schemaUtils, uiSchemaHash, formDataHash]);
