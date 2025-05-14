@@ -10,6 +10,7 @@ export const ANY_OF_KEY = 'anyOf';
 export const CONST_KEY = 'const';
 export const DEFAULT_KEY = 'default';
 export const DEFINITIONS_KEY = 'definitions';
+export const DEFS_KEY = '$defs';
 export const DEPENDENCIES_KEY = 'dependencies';
 export const ENUM_KEY = 'enum';
 export const ERRORS_KEY = '__errors';

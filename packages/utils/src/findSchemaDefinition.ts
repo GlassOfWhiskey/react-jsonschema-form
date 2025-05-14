@@ -72,6 +72,11 @@ export function findSchemaDefinitionRecursive<S extends StrictRJSFSchema = RJSFS
     } else if (rootSchema[SCHEMA_KEY] === JSON_SCHEMA_DRAFT_2020_12) {
       current = findEmbeddedSchemaRecursive<S>(rootSchema, baseURI.replace(/\/$/, ''));
       if (current !== undefined) {
+        baseURI = current[ID_KEY];
+        if (REF_KEY in current) {
+          const resolvedRef = baseURI ? UriResolver.resolve(baseURI, current[REF_KEY] as string) : ref;
+          current = findSchemaDefinitionRecursive<S>(resolvedRef, rootSchema, recurseList, baseURI);
+        }
         current = jsonpointer.get(current, decodedRef);
       }
     }
@@ -82,6 +87,10 @@ export function findSchemaDefinitionRecursive<S extends StrictRJSFSchema = RJSFS
     if (current !== undefined) {
       baseURI = current[ID_KEY];
       if (!isEmpty(refAnchor)) {
+        if (REF_KEY in current) {
+          const resolvedRef = baseURI ? UriResolver.resolve(baseURI, current[REF_KEY] as string) : ref;
+          current = findSchemaDefinitionRecursive<S>(resolvedRef, rootSchema, recurseList, baseURI);
+        }
         current = jsonpointer.get(current, decodeURIComponent(refAnchor.join('#')));
       }
     }

@@ -12,6 +12,7 @@ import {
   ADDITIONAL_PROPERTY_FLAG,
   ALL_OF_KEY,
   ANY_OF_KEY,
+  DEFS_KEY,
   DEPENDENCIES_KEY,
   ID_KEY,
   IF_KEY,
@@ -361,6 +362,26 @@ export function resolveAllReferences<S extends StrictRJSFSchema = RJSFSchema>(
     if (ID_KEY in resolvedSchema) {
       baseURI = resolvedSchema[ID_KEY];
     }
+  }
+
+  if (DEFS_KEY in resolvedSchema) {
+    const childrenLists: string[][] = [];
+    const updatedDefs = transform(
+      resolvedSchema[DEFS_KEY]!,
+      (result, value, key: string) => {
+        const childList: string[] = [...recurseList];
+        result[key] = resolveAllReferences(
+          value as S,
+          rootSchema,
+          childList,
+          get(value, [ID_KEY], get(resolvedSchema[DEFS_KEY], [ID_KEY], get(resolvedSchema, [ID_KEY], baseURI))),
+        );
+        childrenLists.push(childList);
+      },
+      {} as RJSFSchema,
+    );
+    merge(recurseList, uniq(flattenDeep(childrenLists)));
+    resolvedSchema = { ...resolvedSchema, [DEFS_KEY]: updatedDefs };
   }
 
   if (PROPERTIES_KEY in resolvedSchema) {
