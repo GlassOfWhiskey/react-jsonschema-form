@@ -20,7 +20,16 @@ function findEmbeddedSchemaRecursive<S extends StrictRJSFSchema = RJSFSchema>(sc
     return schema;
   }
   for (const subSchema of Object.values(schema)) {
-    if (isObject(subSchema)) {
+    if (Array.isArray(subSchema)) {
+      for (const item of subSchema) {
+        if (isObject(item)) {
+          const result = findEmbeddedSchemaRecursive<S>(item as S, ref);
+          if (result !== undefined) {
+            return result as S;
+          }
+        }
+      }
+    } else if (isObject(subSchema)) {
       const result = findEmbeddedSchemaRecursive<S>(subSchema as S, ref);
       if (result !== undefined) {
         return result as S;
@@ -28,6 +37,31 @@ function findEmbeddedSchemaRecursive<S extends StrictRJSFSchema = RJSFSchema>(sc
     }
   }
   return undefined;
+}
+
+/** Parses a JSONSchema and makes all references absolute with respect to
+ * the `baseURI` argument
+ * @param schema - The schema to be processed
+ * @param baseURI - The base URI to be used for resolving relative references
+ */
+function makeAllReferencesAbsolute<S extends StrictRJSFSchema = RJSFSchema>(schema: S, baseURI: string): S {
+  const currentURI = get(schema, ID_KEY, baseURI);
+  // Make all other references absolute
+  if (REF_KEY in schema) {
+    schema[REF_KEY] = UriResolver.resolve(currentURI, schema[REF_KEY]!);
+  }
+  // Look for references in nested subschemas
+  for (const [key, subSchema] of Object.entries(schema)) {
+    if (Array.isArray(subSchema)) {
+      schema = {
+        ...schema,
+        [key]: subSchema.map((item) => (isObject(item) ? makeAllReferencesAbsolute(item as S, currentURI) : item)),
+      };
+    } else if (isObject(subSchema)) {
+      schema = { ...schema, [key]: makeAllReferencesAbsolute(subSchema as S, currentURI) };
+    }
+  }
+  return schema;
 }
 
 /** Splits out the value at the `key` in `object` from the `object`, returning an array that contains in the first
@@ -72,7 +106,7 @@ export function findSchemaDefinitionRecursive<S extends StrictRJSFSchema = RJSFS
     } else if (rootSchema[SCHEMA_KEY] === JSON_SCHEMA_DRAFT_2020_12) {
       current = findEmbeddedSchemaRecursive<S>(rootSchema, baseURI.replace(/\/$/, ''));
       if (current !== undefined) {
-        current = jsonpointer.get(current, decodedRef);
+        current = makeAllReferencesAbsolute(jsonpointer.get(current, decodedRef), current[ID_KEY]!);
       }
     }
   } else if (rootSchema[SCHEMA_KEY] === JSON_SCHEMA_DRAFT_2020_12) {
@@ -84,6 +118,7 @@ export function findSchemaDefinitionRecursive<S extends StrictRJSFSchema = RJSFS
       if (!isEmpty(refAnchor)) {
         current = jsonpointer.get(current, decodeURIComponent(refAnchor.join('#')));
       }
+      current = makeAllReferencesAbsolute(current!, baseURI!);
     }
   }
   if (current === undefined) {
